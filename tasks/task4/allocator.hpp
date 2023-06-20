@@ -10,23 +10,42 @@ class PoolAllocator {
 public:
     PoolAllocator(size_t chunksPerBlock) : chunksPerBlock_(chunksPerBlock), alloc_(nullptr) { }
 
-    void* allocate(size_t size) {
-        if (alloc_ == nullptr) {
-            alloc_ = allocateBlock(size);
-        }
-        // your code goes here
-    }
+    void* allocate(size_t size);
 
-    void deallocate(void* chunk, size_t size) {
-        // your code goes here
-    }
+    void deallocate(void* chunk, size_t size);
 
 private:
     size_t chunksPerBlock_;
     Chunk* alloc_;
 
-private:
-    Chunk* allocateBlock(size_t chunkSize) {
-        // your code goes here
-    }
+    Chunk* allocateBlock(size_t chunkSize);
 };
+
+Chunk* PoolAllocator::allocateBlock(size_t chunkSize) {
+    size_t blockSize = chunksPerBlock_ * chunkSize;
+
+    Chunk* blockBegin = reinterpret_cast<Chunk*>(malloc(blockSize));
+    Chunk* chunk = blockBegin;
+
+    for (int i = 0; i < chunksPerBlock_ - 1; ++i) {
+        chunk->next = reinterpret_cast<Chunk*>(reinterpret_cast<char*>(chunk) + chunkSize);
+        chunk = chunk->next;
+    }
+
+    chunk->next = nullptr;
+    return blockBegin;
+}
+
+void* PoolAllocator::allocate(size_t size) {
+    if (alloc_ == nullptr) {
+        alloc_ = allocateBlock(size);
+    }
+    Chunk* freeChunk = alloc_;
+    alloc_ = alloc_->next;
+    return freeChunk;
+}
+
+void PoolAllocator::deallocate(void* chunk, size_t size) {
+    reinterpret_cast<Chunk*>(chunk)->next = alloc_;
+    alloc_ = reinterpret_cast<Chunk*>(chunk);
+}
